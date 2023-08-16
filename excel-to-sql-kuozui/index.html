@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel to SQL (KUOZUI)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div id="app">
+    <h1 class="m-4" style="text-align: center;">Excel to SQL (KUOZUI)</h1>
+    <!-- main -->
+    <div class="p-4" style="display: flex;">
+      <div class="col-6 p-4">
+        <v-form class="row g-3" v-slot="{ submitCount, errors, errorBag }" @submit="submit">
+          <div class="col-12">
+            <label for="db" class="form-label">DB</label>
+            <v-field type="text" class="form-control" id="db" name="db" v-model="vo.db"
+              :class="{'is-invalid': submitCount && errors['db']}" rules="required"></v-field>
+            <div class="invalid-feedback">
+              <small v-for="error in errorBag['db']">{{ error }}</small>
+            </div>
+          </div>
+          <div class="col-12">
+            <label for="schema" class="form-label">SCHEMA</label>
+            <v-field type="text" class="form-control" id="schema" name="schema" v-model="vo.schema"
+              :class="{'is-invalid': submitCount && errors['schema']}" rules="required"></v-field>
+            <div class="invalid-feedback">
+              <small v-for="error in errorBag['schema']">{{ error }}</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <label for="sheetNo" class="form-label">Sheet No (based on 0)</label>
+            <v-field type="text" class="form-control" id="sheetNo" name="sheetNo" v-model.number="vo.sheetNo"
+              :class="{'is-invalid': submitCount && errors['sheetNo']}" rules="required"></v-field>
+            <div class="invalid-feedback">
+              <small v-for="error in errorBag['sheetNo']">{{ error }}</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <label for="startRow" class="form-label">Start Row (based on 0)</label>
+            <v-field type="text" class="form-control" id="startRow" name="startRow" v-model.number="vo.startRow"
+              :class="{'is-invalid': submitCount && errors['startRow']}" rules="required|min_value:2"></v-field>
+            <div class="invalid-feedback">
+              <small v-for="error in errorBag['startRow']">{{ error }}</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <label for="endRow" class="form-label">End Row (based on 0)</label>
+            <v-field type="text" class="form-control" id="endRow" name="endRow" v-model.number="vo.endRow"
+              :class="{'is-invalid': submitCount && errors['endRow']}" rules="required"></v-field>
+            <div class="invalid-feedback">
+              <small v-for="error in errorBag['endRow']">{{ error }}</small>
+            </div>
+          </div>
+          <div class="col-12">
+            <label for="formFile" class="form-label">檔案</label>
+            <input type="file" class="form-control" accept=".xls,.xlsx" id="formFile" ref="file">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">送出</button>
+          </div>
+        </v-form>
+      </div>
+      <div class="col-6 p-4">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">SQL</label>
+            <pre class="form-control" style="height: 300px;">
+              <code v-html="sqlHtml"></code>
+            </pre>
+          </div>
+          <div class="col-12">
+            <button type="button" class="btn btn-primary me-1" @click="copy();">複製到剪貼簿</button>
+            <button type="button" class="btn btn-secondary" @click="save();">儲存檔案</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- toast -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+          <strong class="me-auto">{{ toastObj.title }}</strong>
+          <small class="text-muted">{{ toastObj.time }}</small>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">{{ toastObj.message }}</div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vee-validate/4.10.5/vee-validate.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@vee-validate/rules@4.10.5/dist/vee-validate-rules.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script>
+    // ===================================
+    // Vue
+    // ===================================
+
+    const AllRules = VeeValidateRules.default;
+    Object.keys(AllRules).forEach(rule => {
+      VeeValidate.defineRule(rule, AllRules[rule]);
+    });
+
+    VeeValidate.configure({
+      bails: false,
+      validateOnInput: true,
+      generateMessage: (ctx) => {
+        const messageMap = {
+          required: `${ctx.field} 必填`,
+          min_value: `${ctx.field} 最小是 ${ctx.rule.params[0]}`,
+        };
+        return messageMap[ctx.rule.name] ? messageMap[ctx.rule.name] : `The field ${ctx.field} is invalid.`;
+      },
+    });
+
+    let bsToast = null;
+
+    const app = Vue.createApp({
+      components: {
+        // VeeValidate components were renamed to avoid conflicts of HTML form element without a vue compiler
+        VForm: VeeValidate.Form,
+        VField: VeeValidate.Field,
+        VErrorMessage: VeeValidate.ErrorMessage,
+      },
+      setup() {
+        console.log('--- setup ---');
+        const voStr = localStorage.getItem('vo');
+        const vo = Vue.ref(voStr ? JSON.parse(voStr) : {});
+        const file = Vue.ref(null);
+        const sql = Vue.ref('');
+        const sqlHtml = Vue.computed(() => hljs.highlight(sql.value, { language: 'sql' }).value);
+        const toastObj = Vue.ref({ title: '', time: '', message: '' });
+        const copy = () => {
+          if (sql.value === '') {
+            toast('danger', '無SQL內容');
+            return;
+          }
+          navigator.clipboard.writeText(sql.value);
+          toast('success', '複製成功');
+        };
+        const save = () => {
+          if (sql.value === '') {
+            toast('danger', '無SQL內容');
+            return;
+          }
+          const link = document.createElement('a');
+          const blob = new Blob([sql.value], { type: 'text/plain' });
+          link.target = '_blank';
+          link.href = URL.createObjectURL(blob);
+          link.download = 'table.sql';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        };
+        const submit = () => {
+          const excel = file.value.files[0];
+          if (!excel) {
+            toast('danger', '請選擇檔案');
+            return;
+          }
+          localStorage.setItem('vo', JSON.stringify(vo.value));
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+            const sheetName = workbook.SheetNames[vo.value.sheetNo];
+            const sheet = workbook.Sheets[sheetName];
+            const totalList = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }); // header: 1 is important!
+            const rowList = totalList.slice(vo.value.startRow, vo.value.endRow + 1);
+            sql.value = createSql(vo.value.db, vo.value.schema, rowList);
+          };
+          reader.readAsBinaryString(excel);
+        };
+        const toast = (severity, message) => {
+          bsToast._element.className = bsToast._element.className.replace(/(bg-\w*|text-\w*)/g, '');
+          if (severity === '') {
+            toastObj.value.title = '通知';
+            bsToast._element.classList.add('bg-light', 'text-black');
+          }
+          if (severity === 'success') {
+            toastObj.value.title = '成功';
+            bsToast._element.classList.add('bg-success', 'text-white');
+          }
+          if (severity === 'danger') {
+            toastObj.value.title = '失敗';
+            bsToast._element.classList.add('bg-danger', 'text-white');
+          }
+          toastObj.value.time = new Date().toLocaleString();
+          toastObj.value.message = message;
+          bsToast.show();
+        };
+        return { vo, file, sqlHtml, toastObj, copy, save, submit, };
+      },
+      mounted() {
+        console.log('--- mounted ---');
+        bsToast = new bootstrap.Toast(document.querySelectorAll('.toast')[0]);
+      },
+    });
+    app.mount('#app');
+
+    // ===================================
+    // Utils
+    // ===================================
+
+    class StringBuilder {
+      strList = [];
+      append(str) {
+        this.strList.push(str);
+      }
+      toString(separator = '') {
+        return this.strList.join(separator);
+      }
+    }
+
+    function isEmpty(param, checkPropertyEmpty = false) {
+      if (param == null) { return true; }
+      if (param.length > 0) { return false; }
+      if (param.length === 0) { return true; }
+      if (typeof param !== 'object') { return false; }
+      return checkPropertyEmpty
+        ? Object.keys(param).length === 0 || !Object.keys(param).some(property => isNotEmpty(param[property], true))
+        : Object.keys(param).length === 0;
+    }
+
+    function isNotEmpty(param, checkPropertyEmpty = false) {
+      return !isEmpty(param, checkPropertyEmpty);
+    }
+
+    const SPACE = ' ';
+    const CHANGE_LINE = '\n';
+    const COLUMN = {
+      TableId: 2,
+      TableName: 3,
+      ColumnId: 6,
+      ColumnName: 9,
+      DataType: 10,
+      TotalLegnth: 11,
+      DecimalLength: 12,
+      PrimaryKey: 13,
+      Unique: 14,
+      Nullable: 15,
+      AutoIncrement: 16,
+      DefaultValue: 17,
+      Description: 18,
+    }
+
+    function createSql(db, schema, rowList) {
+      const sb = new StringBuilder();
+
+      // Header
+      sb.append(`USE [${db}]` + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      const startRow = 0;
+      const endRow = rowList.length - 1;
+
+      let currTableStartRow = startRow;
+      let currTableEndRow = startRow;
+      let tempTableStartRow = startRow;
+      let currTableId = '';
+      let nextTableId = '';
+
+      // Table
+      rowList.forEach((row, i) => {
+
+        currTableId = row[COLUMN.TableId];
+        nextTableId = i === endRow ? '' : rowList[i + 1][COLUMN.TableId];
+
+        if (currTableId !== nextTableId) {
+          currTableStartRow = tempTableStartRow;
+          currTableEndRow = i;
+          tempTableStartRow = i + 1;
+          const subRowList = rowList.slice(currTableStartRow, currTableEndRow + 1);
+          const sql = createOneTableSql(schema, subRowList);
+          sb.append(sql + CHANGE_LINE);
+        }
+      });
+
+      return sb.toString();
+    }
+
+    function createOneTableSql(schema, rowList) {
+      const sb = new StringBuilder();
+
+      const startRow = 0;
+      const endRow = rowList.length - 1;
+      const tableId = rowList[startRow][COLUMN.TableId];
+      const tableName = rowList[startRow][COLUMN.TableName];
+
+      sb.append(`--------------------------------------------------------------` + CHANGE_LINE);
+      sb.append(`-------------- DDL for ${tableId} (${tableName})` + CHANGE_LINE);
+      sb.append(`--------------------------------------------------------------` + CHANGE_LINE);
+
+      sb.append('SET ANSI_NULLS ON' + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      sb.append('SET QUOTED_IDENTIFIER ON' + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      sb.append('SET ANSI_PADDING OFF' + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      sb.append(`DROP TABLE [${schema}].[${tableId}]` + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      sb.append(`CREATE TABLE [${schema}].[${tableId}]` + CHANGE_LINE);
+      sb.append('(' + CHANGE_LINE);
+
+      // Column
+      rowList.forEach((row, i) => {
+
+        const columnId = row[COLUMN.ColumnId].toString();
+        const dataType = row[COLUMN.DataType].toString();
+        const totalLegnth = row[COLUMN.TotalLegnth].toString();
+        const decimalLength = row[COLUMN.DecimalLength].toString();
+        const nullable = row[COLUMN.Nullable].toString();
+        const autoIncrement = row[COLUMN.AutoIncrement].toString();
+        const defaultValue = row[COLUMN.DefaultValue].toString();
+        const unique = row[COLUMN.Unique].toString();
+
+        const sql = new StringBuilder();
+
+        if (isNotEmpty(totalLegnth) && isNotEmpty(decimalLength)) {
+          sql.append(`[${columnId}] ${dataType}(${totalLegnth},${decimalLength})`);
+        }
+        else if (isNotEmpty(totalLegnth)) {
+          sql.append(`[${columnId}] ${dataType}(${totalLegnth})`);
+        }
+        else {
+          sql.append(`[${columnId}] ${dataType}`);
+        }
+
+        if (nullable === 'x') {
+          sql.append('NOT NULL');
+        } else {
+          sql.append('NULL');
+        }
+
+        if (isNotEmpty(defaultValue)) {
+          sql.append(`DEFAULT ${defaultValue}`);
+        }
+
+        if (autoIncrement === 'x') {
+          sql.append('IDENTITY(1,1)');
+        }
+
+        if (unique === 'x') {
+          sql.append('UNIQUE');
+        }
+
+        if (i !== rowList.length - 1) {
+          sql.append(',');
+        }
+
+        sb.append(sql.toString(SPACE) + CHANGE_LINE);
+      });
+
+      // Primary Key
+      const pkColumnIds = rowList
+        .filter(row => isNotEmpty(row[COLUMN.PrimaryKey]))
+        .map(row => row[COLUMN.ColumnId])
+        .join(',');
+
+      if (isNotEmpty(pkColumnIds)) {
+        sb.append(`,CONSTRAINT [IX_${tableId}] PRIMARY KEY CLUSTERED (${pkColumnIds}) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]` + CHANGE_LINE);
+      }
+
+      sb.append(') ON [PRIMARY]' + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      sb.append('SET ANSI_PADDING OFF' + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      // Comment Table
+      sb.append(`EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'${tableName}', @level0type=N'SCHEMA', @level0name=N'${schema}', @level1type=N'TABLE', @level1name=N'${tableId}'` + CHANGE_LINE);
+      sb.append('GO' + CHANGE_LINE);
+
+      // Comment Column
+      rowList
+        .forEach(row => {
+          const desc = row[COLUMN.ColumnName];
+          sb.append(`EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'${desc}', @level0type=N'SCHEMA', @level0name=N'${schema}', @level1type=N'TABLE', @level1name=N'${tableId}', @level2type=N'COLUMN', @level2name=N'${row[COLUMN.ColumnId]}'` + CHANGE_LINE);
+          sb.append('GO' + CHANGE_LINE);
+        });
+
+      return sb.toString();
+    }
+  </script>
+</body>
+
+</html>
