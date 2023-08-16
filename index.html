@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="https://hochun836.com/assets/favicon.ico">
+  <link rel="apple-touch-icon" sizes="76x76" href="https://hochun836.com/assets/logo-76x76.jpg">
+  <title>Ho.Chun</title>
+  <meta name="description" content="歡迎來到我的個人頁面，這裡分享著我的連結與實作項目。">
+  <meta name="keywords" content="個人資訊, 連結, 實作項目, 全端工程師, 程式開發">
+  <meta name="author" content="Ho.Chun">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url('https://hochun836.com/assets/bg.jpg');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    a:hover {
+      color: #0056b3;
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.3);
+      z-index: -1;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      border-radius: 5px;
+      margin-top: 50px;
+      margin-bottom: 50px;
+      color: #333;
+      position: relative;
+    }
+
+    .profile {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .profile img {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 10px;
+    }
+
+    .profile h1 {
+      margin-bottom: 5px;
+    }
+
+    .profile .description {
+      font-weight: bold;
+    }
+
+    .interests .tag {
+      background-color: #17a2b8;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 3px;
+      margin-right: 5px;
+      font-size: 12px;
+    }
+
+    .links,
+    .portfolio,
+    .supplement-block {
+      margin-top: 30px;
+    }
+
+    .links h2,
+    .portfolio h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .links i,
+    .portfolio i {
+      font-size: 20px;
+      margin-right: 10px;
+    }
+
+    .links a,
+    .portfolio a {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      text-decoration: none;
+      color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s ease;
+      margin-bottom: 10px;
+    }
+
+    .links a:hover,
+    .portfolio a:hover {
+      opacity: 0.8;
+    }
+
+    .supplement-block {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 20px;
+    }
+
+    #scrollToTopBtn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: none;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #scrollToTopBtn:hover {
+      background-color: #0056b3;
+    }
+
+    #shareBtn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #shareBtn:hover {
+      background-color: #0056b3;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -250px;
+      width: 250px;
+      height: 100%;
+      background-color: #333;
+      color: #fff;
+      padding: 20px;
+      z-index: 999;
+      transition: left 0.3s ease;
+    }
+
+    .sidebar.active {
+      left: 0;
+    }
+
+    .menu-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .menu-toggle:hover {
+      background-color: #0056b3;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .close-btn:hover {
+      background-color: #0056b3;
+    }
+
+    @media screen and (max-width: 600px) {
+      .container {
+        max-width: 100%;
+        border-radius: 0;
+        margin-top: 0;
+        margin-bottom: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="overlay"></div>
+  <div class="container">
+    <button id="scrollToTopBtn" onclick="scrollToTop()"><i class="fas fa-arrow-up"></i></button>
+    <button id="shareBtn" onclick="sharePage()"><i class="fas fa-share-alt"></i></button>
+    <!--
+    <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+    -->
+    <div class="sidebar" id="sidebar">
+      <button class="close-btn" id="closeBtn"><i class="fas fa-times"></i></button>
+      <h2>側邊欄</h2>
+      <p>這是側邊欄的內容</p>
+    </div>
+    <div class="profile">
+      <img src="https://hochun836.com/assets/avatar.jpg" alt="個人照片">
+      <h1>Ho.Chun</h1>
+      <p class="description">全端工程師，熱愛網頁開發和學習新技術，對程式設計有著深厚興趣。<br />在這裡分享我的連結與實作項目，歡迎一起交流學習。</p>
+      <p class="interests">
+        <span class="tag">程式</span>
+        <span class="tag">科技</span>
+        <span class="tag">籃球</span>
+        <span class="tag">動畫</span>
+      </p>
+    </div>
+    <div class="links">
+      <h2>我的連結</h2>
+      <a href="https://blog.hochun836.com/" target="_blank" style="background-color: #333; color: #fff;">
+        <img src="https://hochun836.com/assets/favicon.ico" alt="Icon" style="width: 20px; margin-right: 10px;"> Ho.Chun's Blog
+      </a>
+      <!--
+      <a href="https://www.facebook.com/yourusername" target="_blank" style="background-color: #3b5998; color: #fff;">
+        <i class="fab fa-facebook"></i> Facebook
+      </a>
+      -->
+      <a href="https://github.com/hochun836" target="_blank" style="background-color: #333; color: #fff;">
+        <i class="fab fa-github"></i> GitHub
+      </a>
+      <a href="https://gist.github.com/hochun836?direction=desc&sort=updated" target="_blank"
+        style="background-color: #333; color: #fff;">
+        <i class="fab fa-github"></i> Gist
+      </a>
+      <!--
+      <a href="https://www.youtube.com/yourchannel" target="_blank" style="background-color: #c4302b; color: #fff;">
+        <i class="fab fa-youtube"></i> YouTube
+      </a>
+      -->
+      <a href="https://www.linkedin.com/in/hochun836" target="_blank" style="background-color: #0077B5; color: #fff;">
+        <i class="fab fa-linkedin"></i> LinkedIn
+      </a>
+    </div>
+    <div class="portfolio">
+      <h2>實作項目</h2>
+      <a href="https://hochun836.com/demo-angular/" target="_blank" style="background-color: #C3002F; color: #fff;">
+        <i class="fab fa-angular"></i> Demo Angular
+      </a>
+      <a href="https://hochun836.com/excel-to-sql-kuozui/" target="_blank"
+        style="background-color: #42B883; color: #fff;">
+        <i class="fab fa-vuejs"></i> Excel to SQL (KUOZUI)
+      </a>
+    </div>
+    <div class="supplement-block">
+      <p>
+        Background Image by
+        <a href="https://unsplash.com/@alesnesetril?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Ales
+          Nesetril</a> on <a
+          href="https://unsplash.com/photos/Im7lZjxeLhg?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+      </p>
+      <p>
+        Web Design by ChatGPT
+      </p>
+    </div>
+  </div>
+
+  <script>
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    function scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+
+    const debouncedScroll = debounce(() => {
+      const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+      if (window.scrollY > 0) {
+        scrollToTopBtn.style.display = 'block';
+      } else {
+        scrollToTopBtn.style.display = 'none';
+      }
+    }, 250);
+
+    window.addEventListener('scroll', debouncedScroll);
+
+    function sharePage() {
+      if (navigator.share) {
+        navigator.share({
+          title: document.title,
+          url: window.location.href
+        }).then(() => {
+          console.log('分享成功');
+        }).catch((error) => {
+          console.log('分享失敗', error);
+        });
+      } else {
+        console.log('不支援 Web Share API');
+      }
+    }
+
+    /*
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const closeBtn = document.getElementById('closeBtn');
+
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+    });
+
+    closeBtn.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+    });
+    */
+  </script>
+</body>
+
+</html>
