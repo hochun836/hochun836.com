@@ -33,7 +33,7 @@
             </div>
           </div>
           <div class="col-4">
-            <label for="sheetNo" class="form-label">Sheet No (based on 0)</label>
+            <label for="sheetNo" class="form-label">Sheet No (based on 1)</label>
             <v-field type="text" class="form-control" id="sheetNo" name="sheetNo" v-model.number="vo.sheetNo"
               :class="{'is-invalid': submitCount && errors['sheetNo']}" rules="required"></v-field>
             <div class="invalid-feedback">
@@ -41,7 +41,7 @@
             </div>
           </div>
           <div class="col-4">
-            <label for="startRow" class="form-label">Start Row (based on 0)</label>
+            <label for="startRow" class="form-label">Start Row (based on 1)</label>
             <v-field type="text" class="form-control" id="startRow" name="startRow" v-model.number="vo.startRow"
               :class="{'is-invalid': submitCount && errors['startRow']}" rules="required|min_value:2"></v-field>
             <div class="invalid-feedback">
@@ -49,7 +49,7 @@
             </div>
           </div>
           <div class="col-4">
-            <label for="endRow" class="form-label">End Row (based on 0)</label>
+            <label for="endRow" class="form-label">End Row (based on 1)</label>
             <v-field type="text" class="form-control" id="endRow" name="endRow" v-model.number="vo.endRow"
               :class="{'is-invalid': submitCount && errors['endRow']}" rules="required"></v-field>
             <div class="invalid-feedback">
@@ -171,10 +171,10 @@
           const reader = new FileReader();
           reader.onload = (evt) => {
             const workbook = XLSX.read(evt.target.result, { type: 'binary' });
-            const sheetName = workbook.SheetNames[vo.value.sheetNo];
+            const sheetName = workbook.SheetNames[vo.value.sheetNo - 1]; // actually based on 0
             const sheet = workbook.Sheets[sheetName];
             const totalList = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }); // header: 1 is important!
-            const rowList = totalList.slice(vo.value.startRow, vo.value.endRow + 1);
+            const rowList = totalList.slice(vo.value.startRow - 1, vo.value.endRow - 1 + 1); // actually based on 0
             sql.value = createSql(vo.value.db, vo.value.schema, rowList);
           };
           reader.readAsBinaryString(excel);
@@ -258,10 +258,11 @@
       DecimalLength: 12,
       PrimaryKey: 13,
       Unique: 14,
-      Nullable: 15,
-      AutoIncrement: 16,
-      DefaultValue: 17,
-      Description: 18,
+      NonClustered: 15,
+      Nullable: 16,
+      AutoIncrement: 17,
+      DefaultValue: 18,
+      Description: 19,
     }
 
     function createSql(db, schema, rowList) {
@@ -383,6 +384,17 @@
 
       if (isNotEmpty(pkColumnIds)) {
         sb.append(`,CONSTRAINT [IX_${tableId}] PRIMARY KEY CLUSTERED (${pkColumnIds}) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]` + CHANGE_LINE);
+      }
+
+      // Non Clustered
+      const ncColumnIds = rowList
+        .filter(row => isNotEmpty(row[COLUMN.NonClustered]))
+        .sort((row1, row2) => row1[COLUMN.NonClustered] < row2[COLUMN.NonClustered] ? -1 : 1)
+        .map(row => row[COLUMN.ColumnId])
+        .join(',');
+
+      if (isNotEmpty(ncColumnIds)) {
+        sb.append(`,INDEX [IX_NC_${tableId}] NONCLUSTERED (${ncColumnIds}) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]` + CHANGE_LINE);
       }
 
       sb.append(') ON [PRIMARY]' + CHANGE_LINE);
